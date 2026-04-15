@@ -304,7 +304,7 @@
 
     <div class="card sync-card" id="sync-card">
       <label class="label">⚡ Tap-to-Sync</label>
-      <p style="font-size:11px;color:#555;margin:0 0 14px;line-height:1.6">   Place le curseur audio au bon moment, choisis la ligne de départ, puis lance. Tape <strong style="color:#888">espace</strong> à chaque ligne. </p> <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">   <label class="label" style="margin:0;white-space:nowrap">Ligne de départ</label>   <input type="number" id="sync-start-line" value="1" min="1" style="width:80px;padding:8px;background:#0a0a0f;border:1px solid #1a1a24;border-radius:6px;color:#ff9a44;font-size:14px;font-family:inherit;text-align:center" /> </div>
+      <p style="font-size:11px;color:#555;margin:0 0 14px;line-height:1.6">   Place le curseur audio au bon moment, choisis la ligne de départ, puis lance. Tape <strong style="color:#888">espace</strong> à chaque ligne. </p> <select id="sync-start-line" style="width:100%;padding:10px 12px;background:#0a0a0f;border:1px solid #1a1a24;border-radius:8px;color:#ff9a44;font-size:12px;font-family:inherit;margin-bottom:12px">   <option value="1">1 — (ajoute des paroles d'abord)</option> </select>
         L'audio joue, tu tapes <strong style="color:#888">espace</strong> à chaque nouvelle ligne.
       </p>
       <div id="sync-idle">
@@ -423,7 +423,7 @@ function switchStep(id) {
   });
   $$('.panel').forEach(p => p.classList.remove('active'));
   $(`#panel-${id}`).classList.add('active');
-  if (id === 'sync') updateSyncBtn();
+  if (id === 'sync') { updateSyncBtn(); updateStartLineSelect(); }
 }
 $$('.step-btn').forEach(b => b.addEventListener('click', () => switchStep(b.dataset.step)));
 $('#btn-to-sync').addEventListener('click', () => switchStep('sync'));
@@ -447,7 +447,7 @@ function updateCounts() {
   $('#btn-to-sync').disabled = o === 0;
   $('#btn-manual').disabled = o === 0;
 }
-$('#lyrics').addEventListener('input', () => { updateCounts(); updateSyncBtn(); });
+$('#lyrics').addEventListener('input', () => { updateCounts(); updateSyncBtn(); updateStartLineSelect(); });  function updateStartLineSelect() {   const lines = getLines();   const sel = $('#sync-start-line');   const prev = sel.value;   sel.innerHTML = lines.map((l, i) =>     `<option value="${i+1}">${i+1} — ${l.trim().substring(0, 50)}${l.trim().length > 50 ? '...' : ''}</option>`   ).join('');   if (prev && prev <= lines.length) sel.value = prev; }
 $('#translations').addEventListener('input', updateCounts);
 
 // ====== DECODE (GEMINI) ======
