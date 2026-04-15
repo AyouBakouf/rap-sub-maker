@@ -364,10 +364,14 @@
         <div class="card"><pre class="srt-preview" id="srt-preview"></pre></div>
       </div>
 
-      <div class="export-btns" style="margin-top:14px">
-        <button class="btn" id="btn-srt" style="flex:1">⬇ EXPORT .SRT</button>
-        <button class="btn-vtt" id="btn-vtt">⬇ .VTT</button>
-      </div>
+<div class="export-btns" style="margin-top:14px">
+  <button class="btn" id="btn-srt" style="flex:1">⬇ BILINGUE .SRT</button>
+  <button class="btn-vtt" id="btn-vtt">⬇ .VTT</button>
+</div>
+<div class="export-btns" style="margin-top:8px">
+  <button class="btn-secondary" id="btn-srt-orig" style="flex:1">⬇ ORIGINAL SEUL</button>
+  <button class="btn-secondary" id="btn-srt-trans" style="flex:1">⬇ TRADUCTION SEULE</button>
+</div>
 
       <div class="card" style="margin-top:14px">
         <div class="tip-title">💡 Import</div>
@@ -686,7 +690,7 @@ $('#btn-manual').addEventListener('click', () => {
     if (mode === 'original') text = line.trim();
     else if (mode === 'translated') text = tr.trim() || line.trim();
     else text = tr.trim() ? `${line.trim()}\n${tr.trim()}` : line.trim();
-    subs.push({ id: i + 1, start: t, end: t + dur, text });
+    subs.push({ id: i + 1, start: t, end: t + dur, text, original: line.trim(), translation: tr.trim() });
     t += dur + gap;
   });
   generated = true;
@@ -756,8 +760,11 @@ function dl(content, name) {
 $('#btn-srt').addEventListener('click', () => {
   dl(subs.map(s => `${s.id}\n${fmtSRT(s.start)} --> ${fmtSRT(s.end)}\n${s.text}\n`).join('\n'), 'subtitles.srt');
 });
-$('#btn-vtt').addEventListener('click', () => {
-  dl('WEBVTT\n\n' + subs.map(s => `${fmtSRT(s.start).replace(',','.')} --> ${fmtSRT(s.end).replace(',','.')}\n${s.text}\n`).join('\n'), 'subtitles.vtt');
+$('#btn-srt-orig').addEventListener('click', () => {
+  dl(subs.map((s,i) => `${i+1}\n${fmtSRT(s.start)} --> ${fmtSRT(s.end)}\n${s.original}\n`).join('\n'), 'original.srt');
+});
+$('#btn-srt-trans').addEventListener('click', () => {
+  dl(subs.map((s,i) => `${i+1}\n${fmtSRT(s.start)} --> ${fmtSRT(s.end)}\n${s.translation || s.original}\n`).join('\n'), 'traduction.srt');
 });
 
 // Init
