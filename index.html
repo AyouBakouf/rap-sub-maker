@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAP SUB MAKER — Decode + Sync + Export</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>字</text></svg>" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh; background: #0a0a0f; color: #e8e6e1;
+      font-family: 'JetBrains Mono', monospace; overflow-x: hidden;
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.006) 2px, rgba(255,255,255,0.006) 4px);
+    }
+    body::after {
+      content: ''; position: fixed; top: -200px; right: -200px; width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(255,120,30,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .container { position: relative; z-index: 1; max-width: 680px; margin: 0 auto; padding: 24px 16px; }
+
+    /* Header */
+    .header { margin-bottom: 24px; }
+    .header-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .logo {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: linear-gradient(135deg, #ff6b2b, #ff9a44);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; font-weight: 800;
+    }
+    .title {
+      font-size: 20px; font-weight: 800;
+      background: linear-gradient(90deg, #ff6b2b, #ff9a44);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .subtitle { font-size: 11px; color: #555; }
+
+    /* Steps */
+    .steps {
+      display: flex; gap: 2px; margin-bottom: 20px;
+      background: #111118; border-radius: 10px; padding: 3px;
+    }
+    .step-btn {
+      flex: 1; padding: 10px 0; border: none; border-radius: 8px;
+      background: transparent; color: #555;
+      font-size: 10px; font-weight: 700; cursor: pointer;
+      font-family: inherit; letter-spacing: 0.5px; transition: all 0.2s;
+    }
+    .step-btn.active { background: linear-gradient(135deg, #ff6b2b, #ff9a44); color: #0a0a0f; }
+    .step-btn.done { color: #ff9a44; }
+
+    /* Panels */
+    .panel { display: none; flex-direction: column; gap: 16px; }
+    .panel.active { display: flex; }
+
+    /* Shared */
+    .card { background: #111118; border: 1px solid #1a1a24; border-radius: 10px; padding: 16px; }
+    .label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px; font-weight: 600; }
+    textarea, input[type="text"], input[type="number"] {
+      width: 100%; padding: 12px 14px; background: #111118; border: 1px solid #1a1a24;
+      border-radius: 10px; color: #e8e6e1; font-size: 13px; font-family: inherit;
+      outline: none; line-height: 1.7; resize: vertical;
+    }
+    input[type="text"] { resize: none; }
+    input[type="number"] { padding: 10px 12px; border-radius: 8px; }
+
+    .btn {
+      width: 100%; padding: 14px; border: none; border-radius: 10px;
+      background: linear-gradient(135deg, #ff6b2b, #ff9a44);
+      color: #0a0a0f; font-size: 13px; font-weight: 800; cursor: pointer;
+      font-family: inherit; letter-spacing: 1px; text-transform: uppercase; transition: transform 0.1s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .btn-secondary {
+      width: 100%; padding: 14px; border: 1px solid #333; border-radius: 10px;
+      background: #1a1a24; color: #888; font-size: 13px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+    }
+    .btn-secondary:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* Step 1: Decode */
+    .decode-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .decode-hint { font-size: 10px; color: #444; text-align: center; line-height: 1.6; }
+    .loading-bar {
+      height: 3px; background: #1a1a24; border-radius: 2px; overflow: hidden; display: none;
+    }
+    .loading-bar.active { display: block; }
+    .loading-bar::after {
+      content: ''; display: block; height: 100%; width: 30%;
+      background: linear-gradient(90deg, #ff6b2b, #ff9a44);
+      animation: loading 1s ease-in-out infinite;
+    }
+    @keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
+
+    .mode-group { display: flex; gap: 6px; }
+    .mode-btn {
+      flex: 1; padding: 8px 0; border: 1px solid #222; border-radius: 6px;
+      background: #111118; color: #555; font-size: 11px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .mode-btn.active { border-color: #ff6b2b; background: rgba(255,107,43,0.1); color: #ff9a44; }
+
+    .or-divider { display: flex; align-items: center; gap: 12px; }
+    .or-divider .line { flex: 1; height: 1px; background: #1a1a24; }
+    .or-divider span { font-size: 10px; color: #333; letter-spacing: 2px; }
+
+    .line-count { display: flex; justify-content: space-between; font-size: 10px; color: #444; }
+    .line-count .warn { color: #ff4444; }
+
+    /* Step 2: Sync */
+    .upload-zone {
+      display: flex; align-items: center; justify-content: center;
+      padding: 18px; border: 2px dashed #222; border-radius: 10px; cursor: pointer;
+    }
+    .upload-zone:hover { border-color: #333; }
+    .upload-zone span { font-size: 12px; color: #444; }
+    .upload-zone.loaded span { color: #ff9a44; }
+    .upload-zone input { display: none; }
+
+    .player { display: flex; align-items: center; gap: 10px; }
+    .play-btn {
+      width: 40px; height: 40px; border-radius: 50%; border: none;
+      background: linear-gradient(135deg, #ff6b2b, #ff9a44);
+      color: #0a0a0f; font-size: 15px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .play-btn:disabled { background: #222; cursor: default; }
+    .play-btn.sm { width: 32px; height: 32px; font-size: 13px; }
+    .progress-bar { height: 8px; background: #1a1a24; border-radius: 4px; cursor: pointer; overflow: hidden; }
+    .progress-bar.sm { height: 5px; }
+    .progress-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #ff6b2b, #ff9a44); width: 0%; }
+    .time-row { display: flex; justify-content: space-between; margin-top: 4px; font-size: 10px; color: #555; }
+    .debug { font-size: 10px; margin-top: 8px; text-align: center; }
+    .debug.ok { color: #4a4; } .debug.warn { color: #ff9a44; } .debug.err { color: #ff4444; }
+
+    .sync-card { transition: border-color 0.2s, background 0.2s; }
+    .sync-card.active { border-color: #ff6b2b; background: rgba(255,107,43,0.03); }
+    .sync-display { background: #0a0a0f; border-radius: 10px; padding: 16px; margin-bottom: 12px; text-align: center; }
+    .sync-line-num { font-size: 10px; color: #ff9a44; margin-bottom: 6px; font-weight: 600; }
+    .sync-line-text { font-size: 16px; font-weight: 700; color: #fff; line-height: 1.5; }
+    .sync-time { font-size: 11px; color: #444; margin-top: 6px; }
+
+    .tap-btn {
+      width: 100%; padding: 28px; border: none; border-radius: 14px;
+      background: linear-gradient(135deg, #ff6b2b, #ff9a44);
+      color: #0a0a0f; font-size: 18px; font-weight: 800;
+      cursor: pointer; font-family: inherit; letter-spacing: 1px;
+    }
+    .dots { display: flex; gap: 4px; margin-top: 14px; justify-content: center; flex-wrap: wrap; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #1a1a24; transition: background 0.15s; }
+    .dot.done { background: #ff6b2b; } .dot.current { background: #ff9a44; }
+    .cancel-btn {
+      width: 100%; margin-top: 12px; padding: 8px; border: 1px solid #333; border-radius: 8px;
+      background: transparent; color: #555; font-size: 10px; cursor: pointer; font-family: inherit;
+    }
+
+    .timing-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+    /* Step 3: Export */
+    .phone {
+      width: 230px; height: 400px; margin: 0 auto 20px;
+      background: #000; border-radius: 22px; border: 2px solid #1a1a24;
+      position: relative; overflow: hidden;
+    }
+    .phone-bg { position: absolute; inset: 0; background: linear-gradient(180deg, #1a1020, #0d0815); }
+    .phone-sub { position: absolute; bottom: 65px; left: 12px; right: 12px; text-align: center; }
+    .phone-sub-box { background: rgba(0,0,0,0.75); border-radius: 8px; padding: 8px 10px; backdrop-filter: blur(10px); display: none; }
+    .phone-sub-box.visible { display: block; }
+    .phone-sub-line1 { font-size: 13px; font-weight: 700; color: #fff; line-height: 1.5; }
+    .phone-sub-line2 { font-size: 12px; font-weight: 500; color: #ff9a44; line-height: 1.5; }
+    .phone-hint { color: #333; font-size: 10px; }
+
+    .sub-list { display: flex; flex-direction: column; gap: 4px; }
+    .sub-item {
+      display: flex; gap: 10px; padding: 10px 12px; background: #111118;
+      border: 1px solid transparent; border-radius: 8px; cursor: pointer;
+    }
+    .sub-item.active { background: rgba(255,107,43,0.08); border-color: rgba(255,107,43,0.3); }
+    .sub-num {
+      min-width: 24px; height: 24px; border-radius: 6px; background: #1a1a24;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: #444;
+    }
+    .sub-item.active .sub-num { background: #ff6b2b; color: #0a0a0f; }
+    .sub-text { font-size: 12px; color: #e8e6e1; line-height: 1.5; white-space: pre-line; }
+    .sub-time { font-size: 10px; color: #444; margin-top: 3px; }
+
+    .srt-preview { font-size: 10px; color: #666; line-height: 1.6; overflow: auto; max-height: 240px; white-space: pre-wrap; font-family: inherit; }
+    .export-btns { display: flex; gap: 8px; }
+    .btn-vtt {
+      flex: 1; padding: 14px; border: 1px solid #333; border-radius: 10px;
+      background: transparent; color: #888; font-size: 13px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+    }
+    .tip-title { font-size: 10px; color: #ff9a44; letter-spacing: 1px; margin-bottom: 8px; font-weight: 700; text-transform: uppercase; }
+    .tip-body { font-size: 11px; color: #555; line-height: 1.8; }
+    .tip-body strong { color: #888; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .stat { text-align: center; padding: 10px 6px; }
+    .stat-val { font-size: 18px; font-weight: 800; color: #ff9a44; }
+    .stat-label { font-size: 8px; color: #444; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
+
+    .empty { text-align: center; padding: 60px 20px; color: #333; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<audio id="audio" preload="auto"></audio>
+
+<div class="container">
+  <div class="header">
+    <div class="header-row">
+      <div class="logo">字</div>
+      <h1 class="title">RAP SUB MAKER</h1>
+    </div>
+    <p class="subtitle">Decode → Sync → Export .srt</p>
+  </div>
+
+  <div class="steps">
+    <button class="step-btn active" data-step="decode">① DECODE</button>
+    <button class="step-btn" data-step="sync">② SYNC</button>
+    <button class="step-btn" data-step="export">③ EXPORT</button>
+  </div>
+
+  <!-- ========== STEP 1: DECODE ========== -->
+  <div class="panel active" id="panel-decode">
+
+    <div class="card">
+      <label class="label">🎤 Rechercher un son</label>
+      <div class="decode-inputs">
+        <input type="text" id="artist" placeholder="Artiste" />
+        <input type="text" id="song" placeholder="Titre du son" />
+      </div>
+      <div class="loading-bar" id="loading-bar"></div>
+      <div style="margin-top:12px">
+        <button class="btn" id="btn-decode">DECODER</button>
+      </div>
+      <p class="decode-hint" id="decode-status" style="margin-top:10px">
+        Gemini 3 Flash + Google Search — paroles + traduction ligne par ligne
+      </p>
+    </div>
+
+    <div class="or-divider">
+      <div class="line"></div>
+      <span>OU COLLER MANUELLEMENT</span>
+      <div class="line"></div>
+    </div>
+
+    <div>
+      <label class="label">Mode sous-titres</label>
+      <div class="mode-group">
+        <button class="mode-btn" data-mode="original">Original</button>
+        <button class="mode-btn" data-mode="translated">Traduit</button>
+        <button class="mode-btn active" data-mode="bilingual">Bilingue</button>
+      </div>
+    </div>
+
+    <div>
+      <label class="label">Paroles originales</label>
+      <textarea id="lyrics" rows="6" placeholder="1 ligne = 1 sous-titre"></textarea>
+    </div>
+
+    <div id="translation-block">
+      <label class="label">Traduction</label>
+      <textarea id="translations" rows="6" placeholder="Même nombre de lignes"></textarea>
+    </div>
+
+    <div class="line-count">
+      <span id="line-count-orig">0 lignes</span>
+      <span id="line-count-trans">0 traduites</span>
+      <span id="line-count-warn" class="warn" style="display:none">⚠ Nombre différent !</span>
+    </div>
+
+    <button class="btn" id="btn-to-sync">SUIVANT → SYNC</button>
+  </div>
+
+  <!-- ========== STEP 2: SYNC ========== -->
+  <div class="panel" id="panel-sync">
+    <div class="card">
+      <label class="label">🎵 Audio du son</label>
+      <label class="upload-zone" id="upload-zone">
+        <input type="file" id="audio-input" accept=".mp3,.wav,.m4a,.ogg,.aac,audio/*" />
+        <span>Clique pour importer (.mp3, .wav...)</span>
+      </label>
+      <div class="debug" id="audio-debug" style="display:none"></div>
+    </div>
+
+    <div class="card" id="player-card" style="display:none">
+      <div class="player">
+        <button class="play-btn" id="play-btn" disabled>...</button>
+        <div style="flex:1">
+          <div class="progress-bar" id="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+          <div class="time-row"><span id="time-current">0:00.00</span><span id="time-total">--:--</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card sync-card" id="sync-card">
+      <label class="label">⚡ Tap-to-Sync</label>
+      <p style="font-size:11px;color:#555;margin:0 0 14px;line-height:1.6">
+        L'audio joue, tu tapes <strong style="color:#888">espace</strong> à chaque nouvelle ligne.
+      </p>
+      <div id="sync-idle">
+        <button class="btn" id="btn-start-sync" disabled>IMPORTE UN AUDIO D'ABORD</button>
+      </div>
+      <div id="sync-active" style="display:none">
+        <div class="sync-display">
+          <div class="sync-line-num" id="sync-line-num"></div>
+          <div class="sync-line-text" id="sync-line-text"></div>
+          <div class="sync-time" id="sync-time">0:00.00</div>
+        </div>
+        <button class="tap-btn" id="btn-tap">TAP !</button>
+        <div class="dots" id="sync-dots"></div>
+        <button class="cancel-btn" id="btn-cancel-sync">ANNULER</button>
+      </div>
+    </div>
+
+    <div class="or-divider">
+      <div class="line"></div><span>OU TIMING MANUEL</span><div class="line"></div>
+    </div>
+
+    <div class="timing-grid">
+      <div><label class="label">Début (s)</label><input type="number" id="m-start" value="0" step="0.1" /></div>
+      <div><label class="label">Durée/ligne (s)</label><input type="number" id="m-dur" value="2.5" step="0.1" /></div>
+      <div><label class="label">Gap (s)</label><input type="number" id="m-gap" value="0.2" step="0.1" /></div>
+    </div>
+    <button class="btn-secondary" id="btn-manual">GÉNÉRER TIMING MANUEL →</button>
+  </div>
+
+  <!-- ========== STEP 3: EXPORT ========== -->
+  <div class="panel" id="panel-export">
+    <div class="empty" id="export-empty">Sync tes sous-titres d'abord</div>
+    <div id="export-content" style="display:none">
+      <div class="phone">
+        <div class="phone-bg"></div>
+        <div class="phone-sub">
+          <div class="phone-sub-box" id="phone-box">
+            <div class="phone-sub-line1" id="ph-l1"></div>
+            <div class="phone-sub-line2" id="ph-l2"></div>
+          </div>
+          <div class="phone-hint" id="ph-hint">↓ Clique une ligne</div>
+        </div>
+      </div>
+
+      <div class="card" id="export-player" style="display:none;margin-bottom:14px">
+        <div class="player">
+          <button class="play-btn sm" id="ex-play">▶</button>
+          <div style="flex:1"><div class="progress-bar sm" id="ex-bar"><div class="progress-fill" id="ex-fill"></div></div></div>
+          <span style="font-size:10px;color:#444" id="ex-time">0:00</span>
+        </div>
+      </div>
+
+      <div class="sub-list" id="sub-list"></div>
+
+      <div style="margin-top:16px">
+        <label class="label">Aperçu SRT</label>
+        <div class="card"><pre class="srt-preview" id="srt-preview"></pre></div>
+      </div>
+
+      <div class="export-btns" style="margin-top:14px">
+        <button class="btn" id="btn-srt" style="flex:1">⬇ EXPORT .SRT</button>
+        <button class="btn-vtt" id="btn-vtt">⬇ .VTT</button>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="tip-title">💡 Import</div>
+        <div class="tip-body">
+          <strong>CapCut :</strong> Texte → Sous-titres → Importer .srt<br>
+          <strong>Premiere :</strong> Fichier → Importer → Sous-titres<br>
+          <strong>DaVinci :</strong> Media Pool → Import Subtitle
+        </div>
+      </div>
+
+      <div class="stats" style="margin-top:14px">
+        <div class="card stat"><div class="stat-val" id="st-count">0</div><div class="stat-label">Sous-titres</div></div>
+        <div class="card stat"><div class="stat-val" id="st-dur">0s</div><div class="stat-label">Durée</div></div>
+        <div class="card stat"><div class="stat-val" id="st-mode">Bilingue</div><div class="stat-label">Mode</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====== STATE ======
+let mode = 'bilingual';
+let subs = [];
+let generated = false;
+let previewIdx = -1;
+let audioReady = false;
+let isPlaying = false;
+let syncMode = false;
+let syncIdx = 0;
+const stamps = [];
+
+// ====== HELPERS ======
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const audio = $('#audio');
+
+function fmtSRT(sec) {
+  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = Math.floor(sec%60), ms = Math.round((sec%1)*1000);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(ms).padStart(3,'0')}`;
+}
+function fmtShort(sec) {
+  if (!sec && sec !== 0) return '--:--';
+  const m = Math.floor(sec/60), s = Math.floor(sec%60), ms = Math.floor((sec%1)*100);
+  return `${m}:${String(s).padStart(2,'0')}.${String(ms).padStart(2,'0')}`;
+}
+function getLines() { return $('#lyrics').value.split('\n').filter(l => l.trim()); }
+function getTransLines() { return $('#translations').value.split('\n').filter(l => l.trim()); }
+
+// ====== TABS ======
+function switchStep(id) {
+  $$('.step-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.step === id);
+  });
+  $$('.panel').forEach(p => p.classList.remove('active'));
+  $(`#panel-${id}`).classList.add('active');
+  if (id === 'sync') updateSyncBtn();
+}
+$$('.step-btn').forEach(b => b.addEventListener('click', () => switchStep(b.dataset.step)));
+$('#btn-to-sync').addEventListener('click', () => switchStep('sync'));
+
+// ====== MODE ======
+$$('.mode-btn').forEach(b => b.addEventListener('click', () => {
+  $$('.mode-btn').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  mode = b.dataset.mode;
+  $('#translation-block').style.display = mode === 'original' ? 'none' : 'block';
+}));
+
+// ====== LINE COUNTS ======
+function updateCounts() {
+  const o = getLines().length, t = getTransLines().length;
+  $('#line-count-orig').textContent = `${o} lignes`;
+  $('#line-count-trans').textContent = `${t} traduites`;
+  $('#line-count-trans').style.display = mode === 'original' ? 'none' : 'inline';
+  const bad = mode !== 'original' && $('#translations').value.trim() && o !== t;
+  $('#line-count-warn').style.display = bad ? 'inline' : 'none';
+  $('#btn-to-sync').disabled = o === 0;
+  $('#btn-manual').disabled = o === 0;
+}
+$('#lyrics').addEventListener('input', () => { updateCounts(); updateSyncBtn(); });
+$('#translations').addEventListener('input', updateCounts);
+
+// ====== DECODE (GEMINI) ======
+$('#btn-decode').addEventListener('click', async () => {
+  const artist = $('#artist').value.trim();
+  const song = $('#song').value.trim();
+  if (!artist || !song) { $('#decode-status').textContent = 'Remplis artiste + titre'; return; }
+
+  $('#btn-decode').disabled = true;
+  $('#loading-bar').classList.add('active');
+  $('#decode-status').textContent = 'Recherche des paroles...';
+
+  try {
+    const res = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system: `Pour le son "${song}" de ${artist}, donne les paroles complètes et la traduction FR ligne par ligne. Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks: {"lyrics":["ligne1","ligne2"],"translations":["trad1","trad2"]}`,
+        message: `Paroles complètes de "${song}" par ${artist}`,
+        search: true
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // Clean markdown fences if present
+    const clean = data.text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    if (parsed.lyrics) {
+      $('#lyrics').value = parsed.lyrics.join('\n');
+      $('#translations').value = (parsed.translations || []).join('\n');
+      $('#decode-status').textContent = `✓ ${artist} — ${song} chargé`;
+      updateCounts();
+    } else {
+      $('#decode-status').textContent = '⚠ Format inattendu — colle manuellement';
+    }
+  } catch (err) {
+    $('#decode-status').textContent = `Erreur: ${err.message}`;
+  }
+
+  $('#btn-decode').disabled = false;
+  $('#loading-bar').classList.remove('active');
+});
+
+// ====== AUDIO ======
+function showDebug(msg, cls) {
+  const el = $('#audio-debug');
+  el.style.display = 'block';
+  el.textContent = msg;
+  el.className = `debug ${cls}`;
+}
+
+$('#audio-input').addEventListener('change', e => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  audioReady = false; isPlaying = false;
+  audio.pause(); audio.currentTime = 0;
+
+  const zone = $('#upload-zone');
+  zone.classList.add('loaded');
+  zone.querySelector('span').textContent = `✓ ${file.name}`;
+  showDebug('Chargement...', 'warn');
+
+  audio.src = URL.createObjectURL(file);
+  audio.load();
+  $('#player-card').style.display = 'block';
+  $('#play-btn').disabled = true;
+  $('#play-btn').textContent = '...';
+  updateSyncBtn();
+});
+
+audio.addEventListener('loadedmetadata', () => {
+  $('#time-total').textContent = fmtShort(audio.duration);
+  showDebug(`Prêt — ${fmtShort(audio.duration)}`, 'ok');
+  audioReady = true;
+  $('#play-btn').disabled = false;
+  $('#play-btn').textContent = '▶';
+  updateSyncBtn();
+});
+audio.addEventListener('canplay', () => {
+  if (!audioReady && !isNaN(audio.duration)) {
+    audioReady = true;
+    $('#time-total').textContent = fmtShort(audio.duration);
+    showDebug(`Prêt — ${fmtShort(audio.duration)}`, 'ok');
+    $('#play-btn').disabled = false;
+    $('#play-btn').textContent = '▶';
+    updateSyncBtn();
+  }
+});
+audio.addEventListener('error', () => { showDebug('Erreur — essaie un autre format', 'err'); audioReady = false; updateSyncBtn(); });
+audio.addEventListener('timeupdate', () => {
+  const ct = audio.currentTime, dur = audio.duration || 1;
+  $('#time-current').textContent = fmtShort(ct);
+  $('#progress-fill').style.width = `${(ct/dur)*100}%`;
+  if ($('#export-player').style.display !== 'none') {
+    $('#ex-time').textContent = fmtShort(ct);
+    $('#ex-fill').style.width = `${(ct/dur)*100}%`;
+  }
+  if (syncMode) $('#sync-time').textContent = fmtShort(ct);
+});
+audio.addEventListener('ended', () => {
+  isPlaying = false;
+  $('#play-btn').textContent = '▶';
+  $('#ex-play').textContent = '▶';
+  if (syncMode) cancelSync();
+});
+
+function togglePlay() {
+  if (!audioReady) return;
+  if (isPlaying) { audio.pause(); isPlaying = false; }
+  else { audio.play().then(() => { isPlaying = true; }).catch(() => {}); }
+  $('#play-btn').textContent = isPlaying ? '▶' : '⏸';
+  $('#ex-play').textContent = isPlaying ? '▶' : '⏸';
+  // Fix: update after promise
+  setTimeout(() => {
+    $('#play-btn').textContent = isPlaying ? '⏸' : '▶';
+    $('#ex-play').textContent = isPlaying ? '⏸' : '▶';
+  }, 50);
+}
+
+$('#play-btn').addEventListener('click', togglePlay);
+$('#ex-play').addEventListener('click', togglePlay);
+
+function seekFromEvent(e) {
+  if (!audioReady || !audio.duration) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  audio.currentTime = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * audio.duration;
+}
+$('#progress-bar').addEventListener('click', seekFromEvent);
+$('#ex-bar').addEventListener('click', seekFromEvent);
+
+// ====== SYNC ======
+function updateSyncBtn() {
+  const btn = $('#btn-start-sync');
+  const lines = getLines();
+  if (!$('#upload-zone').classList.contains('loaded')) { btn.textContent = "IMPORTE UN AUDIO D'ABORD"; btn.disabled = true; }
+  else if (!audioReady) { btn.textContent = "CHARGEMENT AUDIO..."; btn.disabled = true; }
+  else if (lines.length === 0) { btn.textContent = "AJOUTE DES PAROLES D'ABORD"; btn.disabled = true; }
+  else { btn.textContent = "▶ LANCER TAP-TO-SYNC"; btn.disabled = false; }
+}
+
+$('#btn-start-sync').addEventListener('click', () => {
+  const lines = getLines();
+  if (!audioReady || lines.length === 0) return;
+  syncMode = true; syncIdx = 0; stamps.length = 0;
+  $('#sync-idle').style.display = 'none';
+  $('#sync-active').style.display = 'block';
+  $('#sync-card').classList.add('active');
+  $('#sync-dots').innerHTML = lines.map((_, i) => `<div class="dot ${i === 0 ? 'current' : ''}"></div>`).join('');
+  updateSyncDisplay();
+  audio.currentTime = 0;
+  audio.play().then(() => { isPlaying = true; $('#play-btn').textContent = '⏸'; }).catch(() => {});
+});
+
+function updateSyncDisplay() {
+  const lines = getLines();
+  $('#sync-line-num').textContent = `LIGNE ${Math.min(syncIdx + 1, lines.length)} / ${lines.length}`;
+  $('#sync-line-text').textContent = syncIdx < lines.length ? lines[syncIdx] : '✓ Terminé !';
+  $$('#sync-dots .dot').forEach((d, i) => d.className = `dot ${i < syncIdx ? 'done' : i === syncIdx ? 'current' : ''}`);
+}
+
+function handleTap() {
+  if (!syncMode) return;
+  const lines = getLines();
+  stamps.push(audio.currentTime);
+  syncIdx++;
+  if (syncIdx >= lines.length) {
+    syncMode = false; audio.pause(); isPlaying = false;
+    $('#play-btn').textContent = '▶';
+    buildSubs(stamps);
+    generated = true;
+    renderExport();
+    switchStep('export');
+    resetSyncUI();
+    // Mark steps as done
+    $$('.step-btn')[0].classList.add('done');
+    $$('.step-btn')[1].classList.add('done');
+  } else {
+    updateSyncDisplay();
+  }
+}
+$('#btn-tap').addEventListener('click', handleTap);
+
+function cancelSync() {
+  syncMode = false; audio.pause(); isPlaying = false;
+  $('#play-btn').textContent = '▶';
+  resetSyncUI();
+}
+function resetSyncUI() {
+  $('#sync-idle').style.display = 'block';
+  $('#sync-active').style.display = 'none';
+  $('#sync-card').classList.remove('active');
+}
+$('#btn-cancel-sync').addEventListener('click', cancelSync);
+
+document.addEventListener('keydown', e => {
+  if (syncMode && (e.code === 'Space' || e.code === 'Enter')) { e.preventDefault(); handleTap(); }
+});
+
+// ====== BUILD SUBS ======
+function buildSubs(timestamps) {
+  const lines = getLines(), trans = getTransLines();
+  const dur = parseFloat($('#m-dur').value) || 2.5;
+  subs = lines.map((line, i) => {
+    const tr = trans[i] || '';
+    let text = '';
+    if (mode === 'original') text = line.trim();
+    else if (mode === 'translated') text = tr.trim() || line.trim();
+    else text = tr.trim() ? `${line.trim()}\n${tr.trim()}` : line.trim();
+    const start = timestamps[i];
+    const end = i < lines.length - 1 ? timestamps[i + 1] - 0.05 : start + dur;
+    return { id: i + 1, start, end, text };
+  });
+}
+
+// ====== MANUAL ======
+$('#btn-manual').addEventListener('click', () => {
+  const lines = getLines();
+  if (lines.length === 0) return;
+  const trans = getTransLines();
+  const st = parseFloat($('#m-start').value) || 0;
+  const dur = parseFloat($('#m-dur').value) || 2.5;
+  const gap = parseFloat($('#m-gap').value) || 0.2;
+  subs = []; let t = st;
+  lines.forEach((line, i) => {
+    const tr = trans[i] || '';
+    let text = '';
+    if (mode === 'original') text = line.trim();
+    else if (mode === 'translated') text = tr.trim() || line.trim();
+    else text = tr.trim() ? `${line.trim()}\n${tr.trim()}` : line.trim();
+    subs.push({ id: i + 1, start: t, end: t + dur, text });
+    t += dur + gap;
+  });
+  generated = true;
+  renderExport();
+  switchStep('export');
+});
+
+// ====== EXPORT ======
+function renderExport() {
+  if (!generated) return;
+  $('#export-empty').style.display = 'none';
+  const c = $('#export-content');
+  c.style.display = 'flex'; c.style.flexDirection = 'column'; c.style.gap = '0';
+
+  if (audioReady) $('#export-player').style.display = 'block';
+
+  // Sub list
+  const list = $('#sub-list');
+  list.innerHTML = subs.map((s, i) => `
+    <div class="sub-item" data-i="${i}">
+      <div class="sub-num">${s.id}</div>
+      <div style="flex:1">
+        <div class="sub-text">${s.text.replace(/\n/g, '<br>')}</div>
+        <div class="sub-time">${fmtShort(s.start)} → ${fmtShort(s.end)}</div>
+      </div>
+    </div>`).join('');
+
+  list.querySelectorAll('.sub-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const i = parseInt(item.dataset.i);
+      previewIdx = previewIdx === i ? -1 : i;
+      updatePreview();
+      if (audioReady && previewIdx >= 0) audio.currentTime = subs[previewIdx].start;
+    });
+  });
+
+  // SRT preview
+  const srtText = subs.map(s => `${s.id}\n${fmtSRT(s.start)} --> ${fmtSRT(s.end)}\n${s.text}\n`).join('\n');
+  $('#srt-preview').textContent = srtText;
+
+  // Stats
+  $('#st-count').textContent = subs.length;
+  $('#st-dur').textContent = `${(subs[subs.length-1]?.end||0).toFixed(1)}s`;
+  $('#st-mode').textContent = mode === 'bilingual' ? 'Bilingue' : mode === 'original' ? 'Original' : 'Traduit';
+
+  previewIdx = -1;
+  updatePreview();
+}
+
+function updatePreview() {
+  $$('.sub-item').forEach((el, i) => el.classList.toggle('active', i === previewIdx));
+  const box = $('#phone-box'), hint = $('#ph-hint');
+  if (previewIdx >= 0 && subs[previewIdx]) {
+    const parts = subs[previewIdx].text.split('\n');
+    $('#ph-l1').textContent = parts[0] || '';
+    $('#ph-l2').textContent = parts[1] || '';
+    $('#ph-l2').style.display = parts[1] ? 'block' : 'none';
+    box.classList.add('visible'); hint.style.display = 'none';
+  } else { box.classList.remove('visible'); hint.style.display = 'block'; }
+}
+
+function dl(content, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }));
+  a.download = name; a.click();
+}
+$('#btn-srt').addEventListener('click', () => {
+  dl(subs.map(s => `${s.id}\n${fmtSRT(s.start)} --> ${fmtSRT(s.end)}\n${s.text}\n`).join('\n'), 'subtitles.srt');
+});
+$('#btn-vtt').addEventListener('click', () => {
+  dl('WEBVTT\n\n' + subs.map(s => `${fmtSRT(s.start).replace(',','.')} --> ${fmtSRT(s.end).replace(',','.')}\n${s.text}\n`).join('\n'), 'subtitles.vtt');
+});
+
+// Init
+updateCounts();
+</script>
+</body>
+</html>
