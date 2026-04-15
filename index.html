@@ -594,7 +594,10 @@ function updateSyncBtn() {
 $('#btn-start-sync').addEventListener('click', () => {
   const lines = getLines();
   if (!audioReady || lines.length === 0) return;
-  syncMode = true; syncIdx = 0; stamps.length = 0;
+  const startLine = Math.max(0, Math.min(lines.length - 1, (parseInt($('#sync-start-line').value) || 1) - 1));
+  syncMode = true; syncIdx = startLine; stamps.length = 0;
+  // Pre-fill empty stamps for skipped lines
+  for (let i = 0; i < startLine; i++) stamps.push(0);
   $('#sync-idle').style.display = 'none';
   $('#sync-active').style.display = 'block';
   $('#sync-card').classList.add('active');
