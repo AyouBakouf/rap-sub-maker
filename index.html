@@ -656,15 +656,19 @@ document.addEventListener('keydown', e => {
 function buildSubs(timestamps) {
   const lines = getLines(), trans = getTransLines();
   const dur = parseFloat($('#m-dur').value) || 2.5;
-  subs = lines.map((line, i) => {
+  subs = [];
+  lines.forEach((line, i) => {
+    if (timestamps[i] === 0 && i < timestamps.length - 1 && timestamps[i+1] === 0) return; // skip unfilled
+    if (timestamps[i] === 0) return;
     const tr = trans[i] || '';
     let text = '';
     if (mode === 'original') text = line.trim();
     else if (mode === 'translated') text = tr.trim() || line.trim();
     else text = tr.trim() ? `${line.trim()}\n${tr.trim()}` : line.trim();
     const start = timestamps[i];
-    const end = i < lines.length - 1 ? timestamps[i + 1] - 0.05 : start + dur;
-    return { id: i + 1, start, end, text };
+    const nextStamp = timestamps.slice(i+1).find(t => t > 0);
+    const end = nextStamp ? nextStamp - 0.05 : start + dur;
+    subs.push({ id: subs.length + 1, start, end, text });
   });
 }
 
